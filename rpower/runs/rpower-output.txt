@@ -1,0 +1,94 @@
+will use scale 10 and quantity 5: 2 workers, 2 eigen values, tolerance: 1e-06
+n = 947
+read and loaded data for n = 947 with code 0
+about to launch thread for worker 0
+ID 0 starts
+ ID 0 in big loop
+about to launch thread for worker 1
+*****master:  worker 0 will run experiment 2
+*****master:  worker 1 will run experiment 2
+ID 1 starts
+ ID 1 in big loop
+ID 0 bag 0x24810d0: wait 0 for signal; right now have 201
+ID 0: got signal to start working
+scale for random perturbation: 10
+ID 1 bag 0x2484dc0: wait 0 for signal; right now have 201
+ID 1: got signal to start working
+scale for random perturbation: 10
+ID 0 at iteration 0, norm is 1362.64,   L1(error) = 4.750450482e-01
+ID 1 at iteration 0, norm is 1376.39,   L1(error) = 4.831234991e-01
+ ID 0 converged to tolerance 1e-06! on job 0 at iteration 2
+ ID 0 0-th eigenvalue:  100.056!
+ID 0 at iteration 0, norm is 0.150617,   L1(error) = 2.967307774e-01
+ ID 1 converged to tolerance 1e-06! on job 1 at iteration 2
+ ID 1 0-th eigenvalue:  100.056!
+ID 1 at iteration 0, norm is 0.174259,   L1(error) = 2.988818818e-01
+ ID 0 converged to tolerance 1e-06! on job 0 at iteration 17
+ ID 0 1-th eigenvalue:  0.0319282!
+ ID 0 in big loop
+ID 0 bag 0x24810d0: wait 0 for signal; right now have 202
+master:  worker 0 is done with job 0
+Job 0: Eigenvalue #1 estimate: 1.000559864006e+02
+Job 0: Eigenvalue #2 estimate: 3.192819752241e-02
+master:  worker 0 will run experiment 2
+ ID 1 converged to tolerance 1e-06! on job 1 at iteration 18
+ ID 1 1-th eigenvalue:  0.0316251!
+ ID 1 in big loop
+ID 0: got signal to start working
+scale for random perturbation: 10
+master:  worker 1 is done with job 1
+Job 1: Eigenvalue #1 estimate: 1.000563643318e+02
+Job 1: Eigenvalue #2 estimate: 3.162512925352e-02
+master:  worker 1 will run experiment 3
+ID 1 bag 0x2484dc0: wait 0 for signal; right now have 201
+ID 1: got signal to start working
+scale for random perturbation: 10
+ID 0 at iteration 0, norm is 1308.21,   L1(error) = 4.698667490e-01
+ID 1 at iteration 0, norm is 1324.86,   L1(error) = 4.723509468e-01
+ ID 0 converged to tolerance 1e-06! on job 2 at iteration 2
+ ID 0 0-th eigenvalue:  100.055!
+ID 0 at iteration 0, norm is 0.191965,   L1(error) = 3.034717723e-01
+ ID 1 converged to tolerance 1e-06! on job 3 at iteration 2
+ ID 1 0-th eigenvalue:  100.055!
+ID 1 at iteration 0, norm is 0.179393,   L1(error) = 2.966336311e-01
+ ID 0 converged to tolerance 1e-06! on job 2 at iteration 17
+ ID 0 1-th eigenvalue:  0.0328485!
+ ID 0 in big loop
+master:  worker 0 is done with job 2
+Job 2: Eigenvalue #1 estimate: 1.000548296886e+02
+Job 2: Eigenvalue #2 estimate: 3.284851921942e-02
+master:  worker 0 will run experiment 4
+ID 0 bag 0x24810d0: wait 0 for signal; right now have 201
+ID 0: got signal to start working
+scale for random perturbation: 10
+ ID 1 converged to tolerance 1e-06! on job 3 at iteration 18
+ ID 1 1-th eigenvalue:  0.032282!
+ ID 1 in big loop
+ID 1 bag 0x2484dc0: wait 0 for signal; right now have 202
+master:  worker 1 is done with job 3
+Job 3: Eigenvalue #1 estimate: 1.000550959078e+02
+Job 3: Eigenvalue #2 estimate: 3.228198443077e-02
+master: telling worker 1 to quit
+ ID 1 quitting
+ID 0 at iteration 0, norm is 1331.53,   L1(error) = 4.672651737e-01
+ ID 0 converged to tolerance 1e-06! on job 4 at iteration 2
+ ID 0 0-th eigenvalue:  100.055!
+ID 0 at iteration 0, norm is 0.174336,   L1(error) = 2.909609423e-01
+ ID 0 converged to tolerance 1e-06! on job 4 at iteration 16
+ ID 0 1-th eigenvalue:  0.0335612!
+ ID 0 in big loop
+ID 0 bag 0x24810d0: wait 0 for signal; right now have 202
+master:  worker 0 is done with job 4
+Job 4: Eigenvalue #1 estimate: 1.000548990716e+02
+Job 4: Eigenvalue #2 estimate: 3.356119043035e-02
+master: telling worker 0 to quit
+ ID 0 quitting
+master:  done with loop
+master: joined with thread 0
+freeing array at 0x7f2412920010
+freeing array at 0x7f2412248010
+freeing array at 0x24810d0
+master: joined with thread 1
+freeing array at 0x7f2410c8c010
+freeing array at 0x7f24105b4010
+freeing array at 0x2484dc0
