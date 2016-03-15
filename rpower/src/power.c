@@ -13,7 +13,7 @@ void PWRfreebag(powerbag **ppbag)
 
 	if (pbag == NULL) goto BACK;
 
-	PWRfree((void**)&pbag->vector);
+	PWRfree((void**)&pbag->vector0);
 	PWRfree((void**)&pbag->qcopy);
 	PWRfree((void**)&pbag);
 
@@ -36,7 +36,7 @@ void PWRfree(void **paddress)
 	*paddress = address;
 }
 
-int PWRallocatebag(int ID, int n, int r, double *covmatrix, powerbag **ppbag, double scale, pthread_mutex_t *psyncmutex, pthread_mutex_t *poutputmutex)
+int PWRallocatebag(int ID, int n, int r, double *covmatrix, powerbag **ppbag, double scale, double tolerance, pthread_mutex_t *psyncmutex, pthread_mutex_t *poutputmutex)
 {
 	int retcode = 0;
 	int i;
@@ -44,7 +44,7 @@ int PWRallocatebag(int ID, int n, int r, double *covmatrix, powerbag **ppbag, do
 	double *double_array = NULL;
 
 	int status, command;
-	double *vector, *newvector, *q, *qprime, *qcopy, *scratch, *eigenvalue;
+	double *vector, *vector0, *newvector, *q, *qprime, *qcopy, *scratch, *eigenvalue;
 
 	pbag = (powerbag *)calloc(1, sizeof(powerbag));
 	if (pbag == NULL) {
@@ -55,21 +55,17 @@ int PWRallocatebag(int ID, int n, int r, double *covmatrix, powerbag **ppbag, do
 	status = PREANYTHING;
 	command = STANDBY;
 
-	double_array = calloc(n*r + n*r + n*n + n*n, sizeof(double));
+	double_array = calloc(n*r + n*r + n*r + n*n + n*n, sizeof(double));
 	if (double_array == NULL) {
 		retcode = NOMEMORY; goto BACK;
 	}
 
 	/** keep variables used for intensive computations close together in memory for more efficiency **/
-	vector = &double_array[0];
-	newvector = &double_array[n*r];
-	qprime = &double_array[n*r + n*r];
-	q = &double_array[n*r + n*r + n*n];
-
-	/** ignore any vector and generate at random **/
-	for(i = 0; i < r*n; i++) {
-		vector[i] = rand()/((double) RAND_MAX);
-	}
+	vector0 = &double_array[0];
+	vector = &double_array[n*r];
+	newvector = &double_array[n*r + n*r];
+	qprime = &double_array[n*r + n*r + n*r];
+	q = &double_array[n*r + n*r + n*r + n*n];
 
 	/** now, allocate an extra matrix and a vector to use in perturbation **/
 	/** should really do it in the power retcode since we are putting them in the bag **/
@@ -101,8 +97,10 @@ int PWRallocatebag(int ID, int n, int r, double *covmatrix, powerbag **ppbag, do
 		pbag->scale = scale;
 		pbag->eigenvalue = eigenvalue;
 		pbag->vector = vector;
+		pbag->vector0 = vector0;
 		pbag->newvector = newvector;
 		pbag->rseed = ID; /** initialize a random seed for the thread using its ID **/
+		pbag->tolerance = tolerance;
 	}
 	if (retcode != 0) {
 		/** an error occured, cleanup **/
@@ -165,79 +163,60 @@ int PWRreadnload(char *filename, int *pn, double **pmatrix)
 
 /** Compute a power method iteration **/
 void PWRpoweriteration(int ID, int k, 
-		int n, int r, double *vector, double *newvector, double *q, double *qprime,
-		double *eigenvalue, double *perror,
+		int n, double *vector, double *newvector, double *q,
+		double *peigenvalue, double *perror,
 		pthread_mutex_t *poutputmutex)
 {
 	double norm2 = 0, mult, error;
-	int i, j, f;
+	int i, j;
 
-	/** The first time copy Q into Q' so that we only deal with Q' afterwards**/
-	for (j = 0; j < n*n; j++)
-		qprime[j] = q[j];
-
-	/** loop for the first r == 2 eigen values**/
-	for (f = 0; f < r; f++) {
-		for(i = 0; i < n; i++){
-			newvector[f*n + i] = 0;
-			for (j = 0; j < n; j++) {
-				newvector[f*n + i] += vector[f*n + j]*qprime[i*n + j];
-			}
-		}
-
-		norm2 = 0;
-		for(j = 0; j < n; j++)
-			norm2 += newvector[f*n + j]*newvector[f*n + j];
-
-		mult = 1/sqrt(norm2);
-
-		for(j = 0; j < n; j++)
-			newvector[f*n + j] = newvector[f*n + j]*mult;
-
-		mult = 1/mult;
-
-		eigenvalue[f] = mult;
-
-		/** Set Q' = Q' - lambda w w^T **/
-		for(i = 0; i < n; i++){
-			for (j = 0; j < n; j++){
-				qprime[i*n + j] -= mult*vector[f*n + i]*vector[f*n + j];
-			}
+	/** w_k+1 = Q * w_k **/
+	for(i = 0; i < n; i++){
+		newvector[i] = 0;
+		for (j = 0; j < n; j++) {
+			newvector[i] += vector[j]*q[i*n + j];
 		}
 	}
 
-	PWRcompute_error(n, r, &error, newvector, vector);
+	norm2 = 0;
+	for(j = 0; j < n; j++)
+		norm2 += newvector[j]*newvector[j];
+
+	mult = 1.0/sqrt(norm2);
+
+	for(j = 0; j < n; j++)
+		newvector[j] = newvector[j]*mult;
+
+	*peigenvalue = 1.0/mult;
+
+	PWRcompute_error(n, &error, newvector, vector);
 
 	if(0 == k%100){
 		pthread_mutex_lock(poutputmutex);
-		printf("ID %d at iteration %d, norm is %g, ", ID, k, eigenvalue[0]);
+		printf("ID %d at iteration %d, norm is %g, ", ID, k, *peigenvalue);
 		printf("  L1(error) = %.9e\n", error);
 		pthread_mutex_unlock(poutputmutex);
 	}
 
 	/** will need to map newvector into vector if not terminated **/
-	for(j = 0; j < r*n; j++)
+	for(j = 0; j < n; j++)
 		vector[j] = newvector[j];
 
 	*perror = error;
 }
 
 
-void PWRcompute_error(int n, int r, double *perror, double *newvector, double *vector)
+void PWRcompute_error(int n, double *perror, double *newvector, double *vector)
 {
 	int j;
-	int f;
 	double error;
 
 	error = 0;
 
-	for (f = 0; f < r; f++) {
-		for (j = 0; j < n; j++) {
-			error += fabs(newvector[f*n + j] - vector[f*n + j]);
-		}
+	for (j = 0; j < n; j++) {
+		error += fabs(newvector[j] - vector[j]);
 	}
 	error /= n;
-	error /= r;
 
 	*perror = error;
 
@@ -247,14 +226,16 @@ void PWRcompute_error(int n, int r, double *perror, double *newvector, double *v
 void PWRpoweralg(powerbag *pbag)
 {
 	int n, r, ID;
-	double *vector, *newvector;
+	int i, j, f;
+	double *vector, *vector0, *newvector;
 	int k, waitcount, retcode;
-	double error, tolerance;
+	double error, tolerance, sp;
 	char letsgo = 0, interrupting, forcedquit = 0;
 
 	ID = pbag->ID;
 	n = pbag->n;
 	r = pbag->r;
+	interrupting = 0;
 
 	pthread_mutex_lock(pbag->poutputmutex);
 	printf("ID %d starts\n", pbag->ID);
@@ -262,9 +243,10 @@ void PWRpoweralg(powerbag *pbag)
 
 
 	vector = pbag->vector;
+	vector0 = pbag->vector0;
 	newvector = pbag->newvector;
 
-	tolerance = 1e-6;
+	tolerance = pbag->tolerance;
 
 
 	for(;;){
@@ -308,42 +290,79 @@ void PWRpoweralg(powerbag *pbag)
 		if((retcode = cheap_rank1perturb(n, pbag->scratch, pbag->qcopy, pbag->q, &pbag->rseed, pbag->scale)))
 			goto DONE;
 
-		/** initialize vector to random**/
-		for(k = 0; k < n; k++){
-			vector[k] = rand_r(&pbag->rseed)/((double) RAND_MAX);
+
+
+		/** initialize first vector to random**/
+		for(j = 0; j < n*1; j++){
+			vector0[j] = rand_r(&pbag->rseed)/((double) RAND_MAX);
 		}
 
+		/** copy Q into Q'  so that we only deal with Q' and afterwards**/
+		for (j = 0; j < n*n; j++)
+			pbag->qprime[j] = pbag->q[j];
 
-		for(k = 0; ; k++){
-
-			/* PWRshowvector(n, vector);*/
-			PWRpoweriteration(ID, k, n, r, vector, newvector, pbag->q, pbag->qprime, pbag->eigenvalue, &error, pbag->poutputmutex);
-			if(error < tolerance){
-				pthread_mutex_lock(pbag->poutputmutex);
-				printf(" ID %d converged to tolerance %g! on job %d at iteration %d\n", ID, tolerance, pbag->jobnumber, k);
-				/**printf(" ID %d top eigenvalue  %g!\n", ID, pbag->eigenvalue[0]); don't print eigen values twice**/
-				pthread_mutex_unlock(pbag->poutputmutex);
-
-				break;
+		for (f = 0; f < r; f++) {
+			/** copy f-th column vector0 into vector **/
+			for(j = 0; j < n; j++){
+				vector[f*n + j] = vector0[f*n + j];
 			}
-			pbag->itercount = k;  /** well, in this case we don't really need k **/
-			if(0 == k%1000){
-				pthread_mutex_lock(pbag->psynchro);
+			for(k = 0; ; k++) {
 
-				interrupting = 0;
-				if(pbag->command == INTERRUPT || pbag->command == QUIT){
+				/* PWRshowvector(n, vector);*/
+				PWRpoweriteration(ID, k, n, &vector[f*n], &newvector[f*n], pbag->qprime, &pbag->eigenvalue[f], &error, pbag->poutputmutex);
+				if(error < tolerance){
+					/** finished to compute f-th eigen value **/
+
+
+					/** Set Q' = Q' - lambda w w^T **/
+					for(i = 0; i < n; i++){
+						for (j = 0; j < n; j++){
+							pbag->qprime[i*n + j] -= pbag->eigenvalue[f]*vector[f*n + i]*vector[f*n + j];
+						}
+					}
+
+					/** Set w'_0 = w_0 - (w^T w_0) w **/
+					if (f < r-1) {
+						/** first compute sp = (w^T w_0)**/
+						sp = 0.0;
+						for (j = 0; j < n; j++) {
+							sp += vector[f*n + j] * vector0[f*n + j];
+						}
+						/** Set w'_0 = w_0 - sp * w **/
+						for (j = 0; j < n; j++) {
+							vector0[(f+1)*n + j] = vector0[f*n + j] - sp * vector[f*n + j];
+						}
+					}
+
+
 					pthread_mutex_lock(pbag->poutputmutex);
-					printf(" ID %d interrupting after %d iterations\n", pbag->ID, k);
+					printf(" ID %d converged to tolerance %g! on job %d at iteration %d\n", ID, tolerance, pbag->jobnumber, k);
+					printf(" ID %d %d-th eigenvalue:  %g!\n", ID, f, pbag->eigenvalue[f]);
 					pthread_mutex_unlock(pbag->poutputmutex);
 
-					interrupting = 1;
+					break;
 				}
+				pbag->itercount = k;  /** well, in this case we don't really need k **/
+				if(0 == k%1000){
+					pthread_mutex_lock(pbag->psynchro);
 
-				pthread_mutex_unlock(pbag->psynchro);
+					interrupting = 0;
+					if(pbag->command == INTERRUPT || pbag->command == QUIT){
+						pthread_mutex_lock(pbag->poutputmutex);
+						printf(" ID %d interrupting after %d iterations\n", pbag->ID, k);
+						pthread_mutex_unlock(pbag->poutputmutex);
 
-				if (interrupting)
-					break; /** takes you outside of for loop **/
+						interrupting = 1;
+					}
+
+					pthread_mutex_unlock(pbag->psynchro);
+
+					if (interrupting)
+						break; /** takes you outside of for loop **/
+				}
 			}
+			if (interrupting)
+				break; /** takes you outside of for loop **/
 		}
 
 		/** first, let's check if we have been told to quit **/

@@ -25,9 +25,10 @@ typedef struct powerbag{
 	double *scratch; /** vector used for the rank 1 perturbation **/
 	double *eigenvalue; /** Array of eigen values sorted in decreasing order**/
 	double *vector; /** Corresponding matrix of eigen vectors (r x n matrix) **/
+	double *vector0; /** Corresponding matrix of eigen vectors at iteration 0 (r x n matrix) **/
 	double *newvector; /** Matrix of new eigen vectors at the end of an iteration (r x n matrix)**/
 	double scale; /** scale parameter for the rank 1 perturb **/
-
+	double tolerance;
 
 	int ID; /** worker thread ID **/
 	int status; /** status code **/
@@ -47,14 +48,14 @@ typedef struct powerbag{
 void PWRshowvector(int n, double *vector);
 void PWRfree(void **paddress);
 int PWRreadnload(char *filename, int *pn, double **pmatrix);
-int PWRallocatebag(int ID, int n, int r, double *covmatrix, powerbag **ppbag, double scale, pthread_mutex_t *psyncmutex, pthread_mutex_t *poutputmutex);
+int PWRallocatebag(int ID, int n, int r, double *covmatrix, powerbag **ppbag, double scale, double tolerance, pthread_mutex_t *psyncmutex, pthread_mutex_t *poutputmutex);
 void PWRfreebag(powerbag **ppbag);
 void PWRpoweralg(powerbag *pbag);
 void PWRpoweriteration(int ID, int k, 
-		int n, int r, double *vector, double *newvector, double *q, double *qprime,
-		double *eigenvalue, double *perror,
+		int n, double *vector, double *newvector, double *q,
+		double *peigenvalue, double *perror,
 		pthread_mutex_t *poutputmutex);
-void PWRcompute_error(int n, int r, double *perror, double *newvector, double *vector);
+void PWRcompute_error(int n, double *perror, double *newvector, double *vector);
 
 #endif
 

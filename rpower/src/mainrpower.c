@@ -28,15 +28,17 @@ int main(int argc, char *argv[])
 	char gotone;
 	double *covmatrix;
 	int r;
+	double tolerance;
 	pthread_t *pthread;
 	pthread_mutex_t outputmutex;
 	pthread_mutex_t *psyncmutex;
 	/**unsigned int rseed = 123;**/
 
 	r = 2; /** default number of factors **/
+	tolerance = 1e-6; /** default tolerance parameter**/
 
 	if(argc < 2){
-		printf(" usage: rpower filename [-s scale] [-q quantity] [-w workers]\n");
+		printf(" usage: rpower filename [-s scale] [-q quantity] [-w workers] [-r num of eigen vals] [-t tolerance]\n");
 		retcode = 1; goto BACK;
 	}
 
@@ -61,12 +63,16 @@ int main(int argc, char *argv[])
 			j += 1;
 			r = atoi(argv[j]); /** number of eigen values we want to extract from the PCA on the cov matrix **/
 		}
+		else if (0 == strcmp(argv[j],"-t")){
+			j += 1;
+			tolerance = atof(argv[j]);
+		}
 		else{
 			printf("bad option %s\n", argv[j]); retcode = 1; goto BACK;
 		}
 	}
 
-	printf("will use scale %g and quantity %d: %d workers\n", scale, quantity, numworkers);
+	printf("will use scale %g and quantity %d: %d workers, %d eigen values, tolerance: %g\n", scale, quantity, numworkers, r, tolerance);
 
 	if ( numworkers > quantity ){
 		numworkers = quantity;
@@ -105,7 +111,7 @@ int main(int argc, char *argv[])
 
 	for(j = 0; j < numworkers; j++) {
 
-		if((retcode = PWRallocatebag(j, n, r, covmatrix, &ppbag[j], scale, &psyncmutex[j], &outputmutex)))
+		if((retcode = PWRallocatebag(j, n, r, covmatrix, &ppbag[j], scale, tolerance, &psyncmutex[j], &outputmutex)))
 			goto BACK;
 
 		printf("about to launch thread for worker %d\n", j);
